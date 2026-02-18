@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ shop_name }}{% endblock %}</title>
+    
+    <!-- Base Notion styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notion.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="notion-layout">
+        <!-- Sidebar -->
+        <aside class="notion-sidebar">
+            <div class="notion-sidebar-header">
+                <h1>{{ shop_name }}</h1>
+            </div>
+            
+            <nav class="notion-sidebar-nav">
+                <ul>
+                    <li>
+                        <a href="{{ url_for('main.index') }}" class="{% if request and request.endpoint == 'main.index' %}active{% endif %}">
+                            <i data-feather="home" class="icon"></i>
+                            Главная
+                        </a>
+                    </li>
+                    <li class="sidebar-section">
+                        <span>Администрирование</span>
+                    </li>
+                    <!-- <li>
+                       <a href="{{ url_for('settings.settings_page') }}" class="{% if request.endpoint == 'settings.settings_page' %}active{% endif %}">
+                            <i data-feather="settings"></i> Настройки
+                        </a>
+                    </li>--> 
+                    <li>
+                        <a href="{{ url_for('appointments.appointments_list') }}" class="{% if request and request.endpoint and request.endpoint.startswith('appointments.') %}active{% endif %}">
+                            <i data-feather="calendar" class="icon"></i>
+                            Записи
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('users.users_list') }}" class="{% if request and request.endpoint and request.endpoint.startswith('users.') %}active{% endif %}">
+                            <i data-feather="users" class="icon"></i>
+                            Пользователи
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('services.services_list') }}" class="{% if request and request.endpoint and request.endpoint.startswith('services.') %}active{% endif %}">
+                            <i data-feather="tool" class="icon"></i>
+                            Услуги
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('schedule.schedule') }}" class="{% if request and request.endpoint == 'schedule.schedule' %}active{% endif %}">
+                            <i data-feather="grid" class="icon"></i>
+                            Календарь
+                        </a>
+                    </li>
+                    
+                    <li class="sidebar-section">
+                        <span>Справочники</span>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('dictionaries.brands_list') }}" class="{% if request and request.endpoint == 'dictionaries.brands_list' %}active{% endif %}">
+                            <i data-feather="box"></i> Марки авто
+                        </a>
+                    </li>
+                    
+                    <!-- Остальные разделы справочников и администрирования временно скрыты -->
+                </ul>
+            </nav>
+            
+            <div class="notion-sidebar-footer">
+                <div class="user-info">
+                    <div class="avatar">
+                        {{ session.user_id|default('A')|first|upper }}
+                    </div>
+                    <div>
+                        <div class="user-name">Администратор</div>
+                        <div class="user-status">{{ session.user_id|default('Не в сети') }}</div>
+                    </div>
+                </div>
+                <!-- Ссылка на выход убрана до реализации аутентификации -->
+            </div>
+        </aside>
+        
+        <!-- Main content -->
+        <main class="notion-content">
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    
+    <!-- Feather Icons replacement -->
+    <script>
+        feather.replace();
+    </script>
+    
+    <!-- Main JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

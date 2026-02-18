@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">💾</span>
+        Резервное копирование
+    </h1>
+    <div class="notion-page-description">
+        Управление бекапами базы данных
+    </div>
+</div>
+
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Создать бекап</h2>
+    </div>
+    <div class="notion-block-body">
+        <button id="createBackupBtn" class="notion-button notion-button-primary">
+            <i data-feather="database"></i> Создать резервную копию
+        </button>
+        <p class="hint">Резервная копия будет сохранена в папке backups/. Автоматические бекапы создаются ежедневно в 3:00.</p>
+    </div>
+</div>
+
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Список бекапов</h2>
+    </div>
+    <div class="notion-block-body">
+        {% if backups %}
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Дата создания</th>
+                    <th>Имя файла</th>
+                    <th>Размер</th>
+                    <th>Тип</th>
+                    <th>Статус</th>
+                    <th>Комментарий</th>
+                    <th>Восстановлен</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for backup in backups %}
+                <tr>
+                    <td>{{ backup.id }}</td>
+                    <td>{{ backup.created_at|datetime }}</td>
+                    <td><code>{{ backup.filename }}</code></td>
+                    <td>{{ backup.filesize }}</td>
+                    <td>
+                        {% if backup.type == 'automatic' %}
+                            <span class="notion-badge">Авто</span>
+                        {% else %}
+                            <span class="notion-badge notion-badge-success">Ручной</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if backup.status == 'completed' %}
+                            <span class="notion-badge notion-badge-success">Успешно</span>
+                        {% elif backup.status == 'failed' %}
+                            <span class="notion-badge notion-badge-danger">Ошибка</span>
+                        {% else %}
+                            <span class="notion-badge notion-badge-warning">{{ backup.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ backup.comment or '—' }}</td>
+                    <td>
+                        {% if backup.restored_at %}
+                            {{ backup.restored_at|datetime }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <button class="notion-button" onclick="restoreBackup({{ backup.id }})" {% if backup.status != 'completed' %}disabled{% endif %}>
+                            <i data-feather="rotate-ccw"></i> Восстановить
+                        </button>
+                        <button class="notion-button" onclick="deleteBackup({{ backup.id }})">
+                            <i data-feather="trash-2"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">Бекапов пока нет</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('createBackupBtn').addEventListener('click', function() {
+    if (!confirm('Создать резервную копию? Это может занять несколько минут.')) return;
+    fetch('/admin/backups/create', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Бекап успешно создан!');
+                location.reload();
+            } else {
+                alert('Ошибка: ' + (data.error || 'неизвестная ошибка'));
+            }
+        })
+        .catch(e => alert('Ошибка соединения'));
+});
+
+function restoreBackup(backupId) {
+    if (!confirm('ВНИМАНИЕ! Восстановление из бекапа заменит все текущие данные. Продолжить?')) return;
+    fetch(`/admin/backups/${backupId}/restore`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('База данных успешно восстановлена!');
+                location.reload();
+            } else {
+                alert('Ошибка: ' + (data.error || 'неизвестная ошибка'));
+            }
+        });
+}
+
+function deleteBackup(backupId) {
+    if (!confirm('Удалить файл бекапа?')) return;
+    fetch(`/admin/backups/${backupId}/delete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) location.reload();
+            else alert('Ошибка: ' + (data.error || 'неизвестная ошибка'));
+        });
+}
+</script>
+{% endblock %}

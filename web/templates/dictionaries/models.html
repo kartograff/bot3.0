@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">🚗</span>
+        Модели автомобилей
+    </h1>
+    <div class="notion-page-description">
+        Управление справочником моделей (привязаны к маркам и типам ТС)
+    </div>
+</div>
+
+<!-- Фильтры -->
+<div class="notion-block filters-block">
+    <div class="notion-block-body">
+        <form method="get" class="filters-form">
+            <div class="filter-group">
+                <label class="notion-label">Марка</label>
+                <select name="brand_id" class="notion-input">
+                    <option value="">Все марки</option>
+                    {% for brand in brands %}
+                    <option value="{{ brand.id }}" {% if selected_brand == brand.id %}selected{% endif %}>
+                        {{ brand.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="notion-label">Тип ТС</label>
+                <select name="vehicle_type_id" class="notion-input">
+                    <option value="">Все типы</option>
+                    {% for vt in vehicle_types %}
+                    <option value="{{ vt.id }}" {% if selected_vehicle_type == vt.id %}selected{% endif %}>
+                        {{ vt.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="notion-button notion-button-primary">
+                    <i data-feather="filter"></i> Применить
+                </button>
+                <a href="{{ url_for('dictionaries.models_list') }}" class="notion-button">
+                    <i data-feather="x"></i> Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Список моделей</h2>
+        <a href="{{ url_for('dictionaries.model_create') }}" class="notion-button notion-button-primary">
+            <i data-feather="plus"></i> Добавить модель
+        </a>
+    </div>
+    <div class="notion-block-body">
+        {% if models %}
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Марка</th>
+                    <th>Модель</th>
+                    <th>Тип ТС</th>
+                    <th>Годы</th>
+                    <th>Активна</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model in models %}
+                <tr>
+                    <td>{{ model.id }}</td>
+                    <td>{{ model.brand_name }}</td>
+                    <td><strong>{{ model.name }}</strong></td>
+                    <td>{{ model.vehicle_type_name }}</td>
+                    <td>
+                        {% if model.start_year or model.end_year %}
+                            {{ model.start_year or '...' }} — {{ model.end_year or '...' }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if model.is_active %}
+                            <span class="notion-badge notion-badge-success">Да</span>
+                        {% else %}
+                            <span class="notion-badge">Нет</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <a href="{{ url_for('dictionaries.model_edit', model_id=model.id) }}" class="notion-button">
+                            <i data-feather="edit-2"></i>
+                        </a>
+                        <form method="post" action="{{ url_for('dictionaries.model_delete', model_id=model.id) }}" style="display:inline;">
+                            <button type="submit" class="notion-button" onclick="return confirm('Удалить модель?')">
+                                <i data-feather="trash-2"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">Модели не найдены</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

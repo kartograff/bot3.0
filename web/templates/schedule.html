@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">📆</span>
+        Календарь записей
+    </h1>
+    <div class="notion-page-description">
+        Просмотр и управление записями по датам
+    </div>
+</div>
+
+<!-- Навигация по месяцам -->
+<div class="calendar-nav">
+    <button class="notion-button" onclick="changeMonth(-1)">← Предыдущий</button>
+    <h2 id="currentMonthDisplay">{{ current_month }}</h2>
+    <button class="notion-button" onclick="changeMonth(1)">Следующий →</button>
+</div>
+
+<!-- Календарная сетка -->
+<div class="notion-calendar" id="calendarGrid"></div>
+
+<!-- Список записей на выбранную дату -->
+<div class="notion-block" id="appointmentsBlock" style="display: none;">
+    <div class="notion-block-header">
+        <h2>Записи на <span id="selectedDate"></span></h2>
+    </div>
+    <div class="notion-block-body" id="appointmentsList">
+        <!-- Записи будут подгружены сюда -->
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentDate = new Date();
+
+function renderCalendar(year, month) {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Пн = 0
+    const daysInMonth = lastDay.getDate();
+
+    let html = '<div class="notion-calendar-weekdays">';
+    const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    weekdays.forEach(day => html += `<div class="notion-calendar-weekday">${day}</div>`);
+    html += '</div><div class="notion-calendar-grid">';
+
+    // Пустые ячейки перед первым днём
+    for (let i = 0; i < startDayOfWeek; i++) {
+        html += '<div class="notion-calendar-day empty"></div>';
+    }
+
+    // Дни месяца
+    const today = new Date();
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+        html += `<div class="notion-calendar-day ${isToday ? 'today' : ''}" data-date="${dateStr}">${d}</div>`;
+    }
+
+    html += '</div>';
+    document.getElementById('calendarGrid').innerHTML = html;
+
+    // Добавляем обработчики клика на дни
+    document.querySelectorAll('.notion-calendar-day[data-date]').forEach(day => {
+        day.addEventListener('click', function() {
+            const date = this.dataset.date;
+            loadAppointments(date);
+        });
+    });
+
+    // Подсвечиваем дни, на которые есть записи (можно получить отдельным запросом)
+    fetch(`/api/appointments/dates?year=${year}&month=${month+1}`)
+        .then(r => r.json())
+        .then(dates => {
+            dates.forEach(date => {
+                const dayElem = document.querySelector(`.notion-calendar-day[data-date="${date}"]`);
+                if (dayElem) dayElem.classList.add('has-appointments');
+            });
+        });
+}
+
+function changeMonth(delta) {
+    currentDate.setMonth(currentDate.getMonth() + delta);
+    renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+    document.getElementById('appointmentsBlock').style.display = 'none';
+}
+
+function loadAppointments(date) {
+    document.getElementById('selectedDate').textContent = date;
+    fetch(`/appointments_by_date/${date}`)
+        .then(r => r.json())
+        .then(appointments => {
+            const list = document.getElementById('appointmentsList');
+            if (appointments.length === 0) {
+                list.innerHTML = '<p class="empty-state">Нет записей на этот день</p>';
+            } else {
+                let html = '<table class="notion-table"><thead><tr><th>Время</th><th>Клиент</th><th>Услуга</th><th>Статус</th><th>Действия</th></tr></thead><tbody>';
+                appointments.forEach(apt => {
+                    html += `<tr>
+                        <td>${apt.time}</td>
+                        <td>${apt.client_name}</td>
+                        <td>${apt.service}</td>
+                        <td>${getStatusBadge(apt.status)}</td>
+                        <td>
+                            <button class="notion-button" onclick="viewAppointment(${apt.id})">
+                                <i data-feather="eye"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                list.innerHTML = html;
+                feather.replace();
+            }
+            document.getElementById('appointmentsBlock').style.display = 'block';
+        });
+}
+
+function getStatusBadge(status) {
+    switch(status) {
+        case 'confirmed': return '<span class="notion-badge notion-badge-success">Подтверждено</span>';
+        case 'pending': return '<span class="notion-badge notion-badge-warning">Ожидает</span>';
+        case 'cancelled': return '<span class="notion-badge notion-badge-danger">Отменено</span>';
+        default: return status;
+    }
+}
+
+function viewAppointment(id) {
+    window.location.href = `/appointments/${id}`;
+}
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', () => {
+    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    document.getElementById('currentMonthDisplay').textContent = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+});
+</script>
+
+<style>
+.calendar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+.notion-calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--notion-text-light);
+}
+.notion-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+.notion-calendar-day {
+    aspect-ratio: 1;
+    padding: 8px;
+    background: var(--notion-bg-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+.notion-calendar-day:hover {
+    background-color: var(--notion-bg-hover);
+}
+.notion-calendar-day.today {
+    border: 2px solid var(--notion-accent);
+}
+.notion-calendar-day.has-appointments {
+    font-weight: 600;
+    position: relative;
+}
+.notion-calendar-day.has-appointments::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background-color: var(--notion-accent);
+    border-radius: 50%;
+}
+.notion-calendar-day.empty {
+    background: none;
+    cursor: default;
+}
+#appointmentsBlock {
+    margin-top: 24px;
+}
+</style>
+{% endblock %}

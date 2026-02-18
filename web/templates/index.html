@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">🏠</span>
+        Главная
+    </h1>
+    <div class="notion-page-description">
+        Добро пожаловать в панель управления {{ shop_name }}
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="notion-card-grid">
+    <div class="notion-card">
+        <div class="stat-item">
+            <div class="stat-icon">
+                <i data-feather="calendar"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Записей сегодня</div>
+                <div class="stat-value">{{ stats.today_appointments|default(0) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="notion-card">
+        <div class="stat-item">
+            <div class="stat-icon">
+                <i data-feather="users"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Всего клиентов</div>
+                <div class="stat-value">{{ stats.total_users|default(0) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="notion-card">
+        <div class="stat-item">
+            <div class="stat-icon">
+                <i data-feather="clock"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Ожидают подтверждения</div>
+                <div class="stat-value">{{ stats.pending_appointments|default(0) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="notion-card">
+        <div class="stat-item">
+            <div class="stat-icon">
+                <i data-feather="dollar-sign"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Выручка за месяц</div>
+                <div class="stat-value">{{ stats.monthly_revenue|default(0) }} ₽</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ближайшие записи -->
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>📅 Ближайшие записи</h2>
+        <a href="{{ url_for('appointments.appointments_list') }}" class="notion-button">
+            Все записи
+            <i data-feather="arrow-right"></i>
+        </a>
+    </div>
+    <div class="notion-block-body">
+        {% if upcoming_appointments %}
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Время</th>
+                    <th>Клиент</th>
+                    <th>Услуга</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for apt in upcoming_appointments %}
+                <tr>
+                    <td>{{ apt.date }}</td>
+                    <td>{{ apt.time }}</td>
+                    <td>{{ apt.client_name }}</td>
+                    <td>{{ apt.service }}</td>
+                    <td>
+                        {% if apt.status == 'confirmed' %}
+                            <span class="notion-badge notion-badge-success">Подтверждено</span>
+                        {% elif apt.status == 'pending' %}
+                            <span class="notion-badge notion-badge-warning">Ожидает</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">Нет ближайших записей</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Последние отзывы -->
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>⭐ Последние отзывы</h2>
+        {# Ссылка на страницу отзывов временно убрана, так как не реализована
+        <a href="{{ url_for('reviews_page') }}" class="notion-button">
+            Все отзывы
+            <i data-feather="arrow-right"></i>
+        </a>
+        #}
+    </div>
+    <div class="notion-block-body">
+        {% if recent_reviews %}
+            {% for review in recent_reviews %}
+            <div class="review-item">
+                <div class="review-header">
+                    <strong>{{ review.client_name }}</strong>
+                    <span class="review-rating">{{ '★' * review.rating }}</span>
+                </div>
+                <p class="review-text">{{ review.text|truncate(100) }}</p>
+            </div>
+            {% endfor %}
+        {% else %}
+        <p class="empty-state">Пока нет отзывов</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

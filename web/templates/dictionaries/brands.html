@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">🏭</span>
+        Марки автомобилей
+    </h1>
+    <div class="notion-page-description">
+        Управление справочником марок
+    </div>
+</div>
+
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Список марок</h2>
+        {# Кнопка добавления марки временно отключена до реализации
+        <a href="{{ url_for('dictionaries.brand_create') }}" class="notion-button notion-button-primary">
+            <i data-feather="plus"></i> Добавить марку
+        </a>
+        #}
+    </div>
+    <div class="notion-block-body">
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Логотип</th>
+                    <th>Название</th>
+                    <th>Страна</th>
+                    <th>Активна</th>
+                    <th>Порядок</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for brand in brands %}
+                <tr>
+                    <td>{{ brand.id }}</td>
+                    <td>
+                        {% if brand.logo_url %}
+                            <img src="{{ brand.logo_url }}" alt="logo" class="brand-logo">
+                        {% else %}
+                            <span class="no-logo">—</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ brand.name }}</strong></td>
+                    <td>{{ brand.country or '—' }}</td>
+                    <td>
+                        {% if brand.is_active %}
+                            <span class="notion-badge notion-badge-success">Да</span>
+                        {% else %}
+                            <span class="notion-badge">Нет</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ brand.sort_order }}</td>
+                    <td class="actions">
+                        {# Редактирование и удаление временно отключены
+                        <a href="{{ url_for('dictionaries.brand_edit', brand_id=brand.id) }}" class="notion-button">
+                            <i data-feather="edit-2"></i>
+                        </a>
+                        <form method="post" action="{{ url_for('dictionaries.brand_delete', brand_id=brand.id) }}" style="display:inline;">
+                            <button type="submit" class="notion-button" onclick="return confirm('Удалить марку?')">
+                                <i data-feather="trash-2"></i>
+                            </button>
+                        </form>
+                        #}
+                        <span class="notion-badge">Только просмотр</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

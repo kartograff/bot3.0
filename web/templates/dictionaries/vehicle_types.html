@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">🚛</span>
+        Типы транспортных средств
+    </h1>
+    <div class="notion-page-description">
+        Управление справочником типов ТС
+    </div>
+</div>
+
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Список типов</h2>
+        <a href="{{ url_for('dictionaries.vehicle_type_create') }}" class="notion-button notion-button-primary">
+            <i data-feather="plus"></i> Добавить тип
+        </a>
+    </div>
+    <div class="notion-block-body">
+        {% if types %}
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Код</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for type in types %}
+                <tr>
+                    <td>{{ type.id }}</td>
+                    <td><strong>{{ type.name }}</strong></td>
+                    <td><code>{{ type.code }}</code></td>
+                    <td class="actions">
+                        <a href="{{ url_for('dictionaries.vehicle_type_edit', type_id=type.id) }}" class="notion-button">
+                            <i data-feather="edit-2"></i>
+                        </a>
+                        <form method="post" action="{{ url_for('dictionaries.vehicle_type_delete', type_id=type.id) }}" style="display:inline;">
+                            <button type="submit" class="notion-button" onclick="return confirm('Удалить тип ТС?')">
+                                <i data-feather="trash-2"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">Типы не найдены</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

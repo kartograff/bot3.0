@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">📋</span>
+        Логи ошибок
+    </h1>
+    <div class="notion-page-description">
+        Просмотр и анализ ошибок приложения
+    </div>
+</div>
+
+<!-- Вкладки -->
+<div class="tabs">
+    <a href="{{ url_for('logs.logs_page', tab='recent', page=1) }}" class="tab {% if active_tab == 'recent' %}active{% endif %}">Последние ошибки</a>
+    <a href="{{ url_for('logs.logs_page', tab='stats') }}" class="tab {% if active_tab == 'stats' %}active{% endif %}">Статистика</a>
+</div>
+
+{% if active_tab == 'recent' %}
+<div class="notion-block filters-block">
+    <div class="notion-block-body">
+        <form method="get" class="filters-form">
+            <input type="hidden" name="tab" value="recent">
+            <div class="filter-group">
+                <label class="notion-label">Уровень</label>
+                <select name="level" class="notion-input">
+                    <option value="">Все</option>
+                    <option value="ERROR" {% if level == 'ERROR' %}selected{% endif %}>ERROR</option>
+                    <option value="CRITICAL" {% if level == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+                    <option value="WARNING" {% if level == 'WARNING' %}selected{% endif %}>WARNING</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="notion-label">Поиск</label>
+                <input type="text" name="search" value="{{ search }}" placeholder="Сообщение..." class="notion-input">
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="notion-button notion-button-primary">
+                    <i data-feather="filter"></i> Применить
+                </button>
+                <a href="{{ url_for('logs.logs_page', tab='recent') }}" class="notion-button">
+                    <i data-feather="x"></i> Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="notion-block">
+    <div class="notion-block-body">
+        {% if logs %}
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Уровень</th>
+                    <th>Дата</th>
+                    <th>Источник</th>
+                    <th>Пользователь</th>
+                    <th>Сообщение</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.id }}</td>
+                    <td>
+                        {% if log.level == 'ERROR' %}
+                            <span class="notion-badge notion-badge-danger">ERROR</span>
+                        {% elif log.level == 'CRITICAL' %}
+                            <span class="notion-badge" style="background: #dc3545; color: white;">CRITICAL</span>
+                        {% elif log.level == 'WARNING' %}
+                            <span class="notion-badge notion-badge-warning">WARNING</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.created_at|datetime }}</td>
+                    <td>{{ log.source }}</td>
+                    <td>{{ log.user_id or '—' }}</td>
+                    <td>{{ log.message|truncate(100) }}</td>
+                    <td class="actions">
+                        <button class="notion-button" onclick="viewLog({{ log.id }})">
+                            <i data-feather="eye"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Пагинация -->
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            {% for p in range(1, total_pages + 1) %}
+                <a href="{{ url_for('logs.logs_page', tab='recent', page=p, level=level, search=search) }}" 
+                   class="notion-button {% if p == page %}notion-button-primary{% endif %}">
+                    {{ p }}
+                </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="empty-state">Логи не найдены</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if active_tab == 'stats' %}
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Статистика ошибок</h2>
+    </div>
+    <div class="notion-block-body">
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>Тип ошибки</th>
+                    <th>Количество</th>
+                    <th>Впервые</th>
+                    <th>Последний раз</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in error_stats %}
+                <tr>
+                    <td>{{ stat.error_type }}</td>
+                    <td>{{ stat.count }}</td>
+                    <td>{{ stat.first_seen|datetime }}</td>
+                    <td>{{ stat.last_seen|datetime }}</td>
+                    <td>
+                        {% if stat.resolved %}
+                            <span class="notion-badge notion-badge-success">Решено</span>
+                        {% else %}
+                            <span class="notion-badge notion-badge-warning">Активно</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not stat.resolved %}
+                        <button class="notion-button" onclick="markResolved({{ stat.id }})">
+                            Отметить решённым
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Модальное окно для просмотра деталей лога -->
+<div id="logModal" class="notion-modal-overlay" style="display: none;">
+    <div class="notion-modal">
+        <div class="notion-modal-header">
+            <h3>Детали ошибки</h3>
+            <button class="notion-modal-close" onclick="closeLogModal()">×</button>
+        </div>
+        <div class="notion-modal-body" id="logDetails">
+            Загрузка...
+        </div>
+        <div class="notion-modal-footer">
+            <button class="notion-button" onclick="closeLogModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const logModal = document.getElementById('logModal');
+const logDetails = document.getElementById('logDetails');
+
+function viewLog(logId) {
+    fetch(`/admin/logs/${logId}`)
+        .then(r => r.json())
+        .then(data => {
+            let html = `
+                <p><strong>Уровень:</strong> ${data.level}</p>
+                <p><strong>Время:</strong> ${data.created_at}</p>
+                <p><strong>Источник:</strong> ${data.source}</p>
+                <p><strong>Пользователь:</strong> ${data.user_id || '-'}</p>
+                <p><strong>Сообщение:</strong> ${data.message}</p>
+            `;
+            if (data.traceback) {
+                html += `<p><strong>Traceback:</strong></p><pre>${data.traceback}</pre>`;
+            }
+            if (data.request_data) {
+                html += `<p><strong>Данные запроса:</strong></p><pre>${JSON.stringify(data.request_data, null, 2)}</pre>`;
+            }
+            logDetails.innerHTML = html;
+            logModal.style.display = 'flex';
+        });
+}
+
+function closeLogModal() {
+    logModal.style.display = 'none';
+}
+
+function markResolved(statId) {
+    const comment = prompt('Комментарий (почему ошибка решена):');
+    if (comment === null) return;
+    fetch(`/admin/error-stats/${statId}/resolve`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({comment: comment})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) location.reload();
+        else alert('Ошибка: ' + data.error);
+    });
+}
+
+// Закрыть модалку при клике вне
+window.addEventListener('click', function(e) {
+    if (e.target === logModal) closeLogModal();
+});
+</script>
+{% endblock %}

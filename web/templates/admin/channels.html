@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">📢</span>
+        Telegram-каналы
+    </h1>
+    <div class="notion-page-description">
+        Подключение и настройка публикаций в каналы
+    </div>
+</div>
+
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Добавить канал</h2>
+    </div>
+    <div class="notion-block-body">
+        <div class="alert alert-info">
+            <strong>Как добавить канал:</strong>
+            <ol>
+                <li>Добавьте бота <strong>@{{ bot_username }}</strong> в администраторы канала</li>
+                <li>Введите ID канала (например, -1001234567890) и название</li>
+                <li>ID можно узнать, переслав любое сообщение из канала в @getidsbot</li>
+            </ol>
+        </div>
+        <form method="post" action="{{ url_for('channels.add_channel_route') }}" class="form-inline">
+            <div class="form-row">
+                <input type="text" name="channel_id" placeholder="ID канала" class="notion-input" required>
+                <input type="text" name="channel_name" placeholder="Название канала" class="notion-input" required>
+                <input type="text" name="channel_username" placeholder="@username (если есть)" class="notion-input">
+                <button type="submit" class="notion-button notion-button-primary">
+                    <i data-feather="plus"></i> Добавить
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Подключенные каналы</h2>
+    </div>
+    <div class="notion-block-body">
+        {% if channels %}
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>Канал</th>
+                    <th>ID</th>
+                    <th>Статус</th>
+                    <th>Настройки</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ch in channels %}
+                <tr>
+                    <td>
+                        <strong>{{ ch.channel_name }}</strong><br>
+                        {% if ch.channel_username %}
+                            <a href="https://t.me/{{ ch.channel_username[1:] }}" target="_blank">{{ ch.channel_username }}</a>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ ch.channel_id }}</code></td>
+                    <td>
+                        {% if ch.is_active %}
+                            <span class="notion-badge notion-badge-success">Активен</span>
+                        {% else %}
+                            <span class="notion-badge">Неактивен</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="notion-button" onclick="showSettings({{ ch.id }})">
+                            <i data-feather="settings"></i> Настроить
+                        </button>
+                    </td>
+                    <td class="actions">
+                        <a href="{{ url_for('channels.toggle_channel', channel_id=ch.id) }}" class="notion-button">
+                            {% if ch.is_active %}
+                                <i data-feather="pause-circle"></i> Деактивировать
+                            {% else %}
+                                <i data-feather="play-circle"></i> Активировать
+                            {% endif %}
+                        </a>
+                        <form method="post" action="{{ url_for('channels.delete_channel_route', channel_id=ch.id) }}" style="display:inline;">
+                            <button type="submit" class="notion-button" onclick="return confirm('Удалить канал?')">
+                                <i data-feather="trash-2"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                <tr id="settings-{{ ch.id }}" style="display: none;">
+                    <td colspan="5">
+                        <form method="post" action="{{ url_for('channels.update_channel_settings', channel_id=ch.id) }}" class="settings-form">
+                            <h4>Настройки публикаций</h4>
+                            <table class="notion-table">
+                                <thead>
+                                    <tr>
+                                        <th>Событие</th>
+                                        <th>Включено</th>
+                                        <th>Шаблон сообщения</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for setting in ch.settings %}
+                                    <tr>
+                                        <td>
+                                            {% if setting.event_type == 'new_appointment' %}📅 Новая запись
+                                            {% elif setting.event_type == 'new_review' %}⭐ Новый отзыв
+                                            {% elif setting.event_type == 'appointment_confirmed' %}✅ Запись подтверждена
+                                            {% elif setting.event_type == 'appointment_cancelled' %}❌ Запись отменена
+                                            {% elif setting.event_type == 'completed_appointment' %}🎉 Услуга оказана
+                                            {% else %}{{ setting.event_type }}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <input type="checkbox" name="enabled_{{ setting.event_type }}" {% if setting.is_enabled %}checked{% endif %}>
+                                        </td>
+                                        <td>
+                                            <textarea name="template_{{ setting.event_type }}" rows="2" class="notion-input">{{ setting.message_template }}</textarea>
+                                            <small class="hint">Переменные: {client_name}, {service_name}, {date}, {time}, {rating}, {review_text}</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            <button type="submit" class="notion-button notion-button-primary">Сохранить настройки</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">Каналы не подключены</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>История публикаций</h2>
+    </div>
+    <div class="notion-block-body">
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Канал</th>
+                    <th>Событие</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for post in posts_history %}
+                <tr>
+                    <td>{{ post.published_at|datetime }}</td>
+                    <td>{{ post.channel_name }}</td>
+                    <td>{{ post.event_type }}</td>
+                    <td>
+                        {% if post.status == 'success' %}
+                            <span class="notion-badge notion-badge-success">Успешно</span>
+                        {% else %}
+                            <span class="notion-badge notion-badge-danger">Ошибка</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showSettings(channelId) {
+    const row = document.getElementById(`settings-${channelId}`);
+    if (row.style.display === 'none') {
+        row.style.display = 'table-row';
+    } else {
+        row.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

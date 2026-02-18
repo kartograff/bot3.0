@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">👥</span>
+        Пользователи
+    </h1>
+    <div class="notion-page-description">
+        Управление зарегистрированными пользователями
+    </div>
+</div>
+
+<!-- Поиск -->
+<div class="notion-block filters-block">
+    <div class="notion-block-body">
+        <form method="get" class="filters-form">
+            <div class="filter-group">
+                <label class="notion-label">Поиск</label>
+                <input type="text" name="search" value="{{ search }}" placeholder="Имя, username, телефон..." class="notion-input">
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="notion-button notion-button-primary">
+                    <i data-feather="search"></i> Найти
+                </button>
+                <a href="{{ url_for('users.users_list') }}" class="notion-button">
+                    <i data-feather="x"></i> Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Таблица пользователей -->
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Список пользователей</h2>
+    </div>
+    <div class="notion-block-body">
+        {% if users %}
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Full Name</th>
+                    <th>Телефон</th>
+                    <th>Комментарий</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.user_id }}</td>
+                    <td>@{{ user.username or '—' }}</td>
+                    <td>{{ user.full_name }}</td>
+                    <td>{{ user.phone or '—' }}</td>
+                    <td class="note-cell">
+                        <span class="note-text" id="note-{{ user.user_id }}">{{ user.notes or '' }}</span>
+                        <button class="edit-note-btn" data-user-id="{{ user.user_id }}" onclick="editNote({{ user.user_id }})">
+                            <i data-feather="edit-2" width="14" height="14"></i>
+                        </button>
+                    </td>
+                    <td class="actions">
+                        <a href="{{ url_for('users.user_detail', user_id=user.user_id) }}" class="notion-button">
+                            <i data-feather="eye"></i>
+                        </a>
+                        <button class="notion-button" onclick="deleteUser({{ user.user_id }})">
+                            <i data-feather="trash-2"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Пагинация -->
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            {% for p in range(1, total_pages + 1) %}
+                <a href="{{ url_for('users.users_list', page=p, search=search) }}" 
+                   class="notion-button {% if p == page %}notion-button-primary{% endif %}">
+                    {{ p }}
+                </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="empty-state">Пользователи не найдены</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Модальное окно для редактирования заметки -->
+<div id="noteModal" class="notion-modal-overlay" style="display: none;">
+    <div class="notion-modal">
+        <div class="notion-modal-header">
+            <h3>Редактировать комментарий</h3>
+            <button class="notion-modal-close" onclick="closeNoteModal()">×</button>
+        </div>
+        <div class="notion-modal-body">
+            <textarea id="noteInput" rows="5" class="notion-input" style="width: 100%;"></textarea>
+        </div>
+        <div class="notion-modal-footer">
+            <button class="notion-button" onclick="closeNoteModal()">Отмена</button>
+            <button class="notion-button notion-button-primary" onclick="saveNote()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentUserId = null;
+const noteModal = document.getElementById('noteModal');
+const noteInput = document.getElementById('noteInput');
+
+function editNote(userId) {
+    currentUserId = userId;
+    const noteText = document.getElementById(`note-${userId}`).innerText;
+    noteInput.value = noteText;
+    noteModal.style.display = 'flex';
+}
+
+function closeNoteModal() {
+    noteModal.style.display = 'none';
+    currentUserId = null;
+}
+
+function saveNote() {
+    if (!currentUserId) return;
+    const newNote = noteInput.value.trim();
+    fetch(`/users/${currentUserId}/note`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: newNote })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`note-${currentUserId}`).innerText = newNote;
+            closeNoteModal();
+        } else {
+            alert('Ошибка сохранения');
+        }
+    });
+}
+
+function deleteUser(userId) {
+    if (confirm('Удалить пользователя? Это действие нельзя отменить.')) {
+        fetch(`/users/${userId}`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) location.reload();
+                else alert('Ошибка удаления');
+            });
+    }
+}
+
+// Закрыть модалку при клике вне
+window.addEventListener('click', function(e) {
+    if (e.target === noteModal) closeNoteModal();
+});
+</script>
+{% endblock %}

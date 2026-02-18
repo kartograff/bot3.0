@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">📅</span>
+        Записи
+    </h1>
+    <div class="notion-page-description">
+        Управление записями клиентов
+    </div>
+</div>
+
+<!-- Фильтры -->
+<div class="notion-block filters-block">
+    <div class="notion-block-body">
+        <form method="get" class="filters-form">
+            <div class="filter-group">
+                <label class="notion-label">Дата</label>
+                <input type="date" name="date" value="{{ selected_date }}" class="notion-input">
+            </div>
+            <div class="filter-group">
+                <label class="notion-label">Статус</label>
+                <select name="status" class="notion-input">
+                    <option value="">Все</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Ожидает</option>
+                    <option value="confirmed" {% if status == 'confirmed' %}selected{% endif %}>Подтверждено</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Завершено</option>
+                    <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Отменено</option>
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="notion-button notion-button-primary">
+                    <i data-feather="filter"></i> Применить
+                </button>
+                <a href="{{ url_for('appointments.appointments_list') }}" class="notion-button">
+                    <i data-feather="x"></i> Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Таблица записей -->
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Список записей</h2>
+        {# Кнопка добавления записи временно отключена до реализации
+        <a href="{{ url_for('appointments.new_appointment') }}" class="notion-button notion-button-primary">
+            <i data-feather="plus"></i> Новая запись
+        </a>
+        #}
+    </div>
+    <div class="notion-block-body">
+        {% if appointments %}
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Время</th>
+                    <th>Клиент</th>
+                    <th>Услуга</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for apt in appointments %}
+                <tr>
+                    <td>{{ apt.date }}</td>
+                    <td>{{ apt.time }}</td>
+                    <td>{{ apt.client_name }}</td>
+                    <td>{{ apt.service }}</td>
+                    <td>
+                        {% if apt.status == 'confirmed' %}
+                            <span class="notion-badge notion-badge-success">Подтверждено</span>
+                        {% elif apt.status == 'pending' %}
+                            <span class="notion-badge notion-badge-warning">Ожидает</span>
+                        {% elif apt.status == 'completed' %}
+                            <span class="notion-badge" style="background: #e3f2fd; color: #1976d2;">Завершено</span>
+                        {% elif apt.status == 'cancelled' %}
+                            <span class="notion-badge notion-badge-danger">Отменено</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <a href="{{ url_for('appointments.appointment_detail', appointment_id=apt.id) }}" class="notion-button">
+                            <i data-feather="eye"></i>
+                        </a>
+                        <button class="notion-button" onclick="editAppointment({{ apt.id }})">
+                            <i data-feather="edit-2"></i>
+                        </button>
+                        <button class="notion-button" onclick="cancelAppointment({{ apt.id }})">
+                            <i data-feather="x-circle"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Пагинация -->
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            {% for p in range(1, total_pages + 1) %}
+                <a href="{{ url_for('appointments.appointments_list', page=p, date=selected_date, status=status) }}" 
+                   class="notion-button {% if p == page %}notion-button-primary{% endif %}">
+                    {{ p }}
+                </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="empty-state">Нет записей</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function cancelAppointment(id) {
+    if (confirm('Отменить запись?')) {
+        fetch(`/appointments/${id}/cancel`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) location.reload();
+                else alert('Ошибка');
+            });
+    }
+}
+</script>
+{% endblock %}

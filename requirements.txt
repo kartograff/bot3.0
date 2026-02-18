@@ -1,0 +1,25 @@
+# Core
+python-dotenv==1.0.0
+
+# Bot
+aiogram==3.10.0
+
+# Web (Flask 3.0)
+Flask>=3.0.0
+hypercorn>=0.14.0
+
+# Database
+psycopg2-binary>=2.9.9
+
+# Scheduler
+APScheduler>=3.10.0
+
+# HTTP client (for OpenRouter)
+aiohttp>=3.9.0
+
+# Utilities
+cachetools>=5.3.0
+pytz>=2024.1
+
+# Markdown support
+markdown>=3.6

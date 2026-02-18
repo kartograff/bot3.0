@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notion-page-header">
+    <h1>
+        <span class="icon">🔧</span>
+        Услуги
+    </h1>
+    <div class="notion-page-description">
+        Управление услугами сервиса
+    </div>
+</div>
+
+<!-- Фильтр по типу ТС (временно отключен, так как не передаётся переменная vehicle_types) -->
+{# 
+<div class="notion-block filters-block">
+    <div class="notion-block-body">
+        <form method="get" class="filters-form">
+            <div class="filter-group">
+                <label class="notion-label">Тип ТС</label>
+                <select name="vehicle_type" class="notion-input">
+                    <option value="">Все</option>
+                    {% if vehicle_types %}
+                        {% for vt in vehicle_types %}
+                        <option value="{{ vt.id }}" {% if request.args.get('vehicle_type')|int == vt.id %}selected{% endif %}>
+                            {{ vt.name }}
+                        </option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="notion-button notion-button-primary">
+                    <i data-feather="filter"></i> Применить
+                </button>
+                <a href="{{ url_for('services.services_list') }}" class="notion-button">
+                    <i data-feather="x"></i> Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+#}
+
+<div class="notion-block">
+    <div class="notion-block-header">
+        <h2>Список услуг</h2>
+        {# Кнопка добавления услуги временно отключена до реализации
+        <a href="{{ url_for('services.add_service') }}" class="notion-button notion-button-primary">
+            <i data-feather="plus"></i> Добавить услугу
+        </a>
+        #}
+    </div>
+    <div class="notion-block-body">
+        <table class="notion-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Тип ТС</th>
+                    <th>Описание</th>
+                    <th>Цена</th>
+                    <th>Активна</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for service in services %}
+                <tr>
+                    <td>{{ service.id }}</td>
+                    <td><strong>{{ service.name }}</strong></td>
+                    <td>{{ service.vehicle_type_name or '—' }}</td>
+                    <td>{{ service.description|truncate(50) or '—' }}</td>
+                    <td>{{ service.price|default('—', true) }}</td>
+                    <td>
+                        {% if service.is_active %}
+                            <span class="notion-badge notion-badge-success">Да</span>
+                        {% else %}
+                            <span class="notion-badge">Нет</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        {# Редактирование и удаление временно отключены до реализации
+                        <a href="{{ url_for('services.edit_service', service_id=service.id) }}" class="notion-button">
+                            <i data-feather="edit-2"></i>
+                        </a>
+                        <form method="post" action="{{ url_for('services.delete_service_route', service_id=service.id) }}" style="display:inline;">
+                            <button type="submit" class="notion-button" onclick="return confirm('Удалить услугу?')">
+                                <i data-feather="trash-2"></i>
+                            </button>
+                        </form>
+                        #}
+                        <span class="notion-badge">Только просмотр</span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="empty-state">Услуги не найдены</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

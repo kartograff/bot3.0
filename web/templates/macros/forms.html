@@ -1,0 +1,98 @@
+{# 
+    Reusable form components in Notion style.
+    Usage:
+    {% from "macros/forms.html" import render_input, render_select, render_textarea, render_checkbox, render_submit %}
+#}
+
+{% macro render_input(name, label=None, value='', type='text', placeholder='', required=False, help_text='') %}
+<div class="form-group">
+    {% if label %}
+    <label for="{{ name }}" class="notion-label">{{ label }}{% if required %} <span class="required">*</span>{% endif %}</label>
+    {% endif %}
+    <input type="{{ type }}" 
+           name="{{ name }}" 
+           id="{{ name }}" 
+           value="{{ value }}" 
+           placeholder="{{ placeholder }}" 
+           {% if required %}required{% endif %}
+           class="notion-input">
+    {% if help_text %}
+    <small class="hint">{{ help_text }}</small>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_select(name, label=None, options=[], selected=None, placeholder='', required=False, help_text='') %}
+<div class="form-group">
+    {% if label %}
+    <label for="{{ name }}" class="notion-label">{{ label }}{% if required %} <span class="required">*</span>{% endif %}</label>
+    {% endif %}
+    <select name="{{ name }}" id="{{ name }}" class="notion-input" {% if required %}required{% endif %}>
+        {% if placeholder %}
+        <option value="" disabled {% if not selected %}selected{% endif %}>{{ placeholder }}</option>
+        {% endif %}
+        {% for opt in options %}
+            <option value="{{ opt.value }}" {% if selected == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+        {% endfor %}
+    </select>
+    {% if help_text %}
+    <small class="hint">{{ help_text }}</small>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_textarea(name, label=None, value='', rows=4, placeholder='', required=False, help_text='') %}
+<div class="form-group">
+    {% if label %}
+    <label for="{{ name }}" class="notion-label">{{ label }}{% if required %} <span class="required">*</span>{% endif %}</label>
+    {% endif %}
+    <textarea name="{{ name }}" 
+              id="{{ name }}" 
+              rows="{{ rows }}" 
+              placeholder="{{ placeholder }}" 
+              {% if required %}required{% endif %}
+              class="notion-input">{{ value }}</textarea>
+    {% if help_text %}
+    <small class="hint">{{ help_text }}</small>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_checkbox(name, label=None, checked=False, help_text='') %}
+<div class="form-group checkbox-group">
+    <label class="checkbox-label">
+        <input type="checkbox" name="{{ name }}" id="{{ name }}" {% if checked %}checked{% endif %}>
+        <span>{{ label }}</span>
+    </label>
+    {% if help_text %}
+    <small class="hint">{{ help_text }}</small>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_submit(text='Сохранить', icon='save', primary=True) %}
+<button type="submit" class="notion-button {% if primary %}notion-button-primary{% endif %}">
+    {% if icon %}<i data-feather="{{ icon }}"></i>{% endif %}
+    {{ text }}
+</button>
+{% endmacro %}
+
+{% macro render_cancel_button(url, text='Отмена') %}
+<a href="{{ url }}" class="notion-button">
+    <i data-feather="x"></i> {{ text }}
+</a>
+{% endmacro %}
+
+{% macro render_form_errors(errors) %}
+{% if errors %}
+<div class="form-errors">
+    <ul>
+        {% for field, field_errors in errors.items() %}
+            {% for error in field_errors %}
+                <li>{{ field }}: {{ error }}</li>
+            {% endfor %}
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endmacro %}
