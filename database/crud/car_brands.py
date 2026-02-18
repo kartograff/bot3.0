@@ -172,3 +172,13 @@ def get_brands_by_letter(letter):
     finally:
         cur.close()
         return_db_connection(conn)
+
+def get_brand_by_name(name):
+    """Возвращает ID марки по имени, или None."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM car_brands WHERE name = %s", (name,))
+    row = cur.fetchone()
+    cur.close()
+    return_db_connection(conn)
+    return row[0] if row else None
