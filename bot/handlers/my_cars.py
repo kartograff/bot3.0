@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
@@ -28,18 +29,79 @@ from bot.keyboards.cars import (
 )
 from bot.keyboards.common import get_main_menu, back_keyboard, skip_keyboard, cancel_keyboard
 from bot.keyboards.booking import get_vehicle_types_keyboard
+from utils.cache import get_cache, set_cache
 
 logger = logging.getLogger(__name__)
 router = Router()
 
+# ---------- Кеширование справочных данных ----------
+async def get_cached_vehicle_types():
+    """Типы ТС с кешем 5 минут."""
+    cached = get_cache('vehicle_types')
+    if cached is not None:
+        return cached
+    types = await asyncio.to_thread(get_all_vehicle_types)
+    set_cache('vehicle_types', types)
+    return types
+
+async def get_cached_brands_grouped_by_letter():
+    """Марки, сгруппированные по буквам (кеш 5 мин)."""
+    cached = get_cache('brands_grouped')
+    if cached is not None:
+        return cached
+    brands = await asyncio.to_thread(get_brands_grouped_by_letter)
+    set_cache('brands_grouped', brands)
+    return brands
+
+async def get_cached_brands_by_letter(letter: str):
+    """Марки для конкретной буквы (кеш 5 мин)."""
+    cache_key = f'brands_{letter}'
+    cached = get_cache(cache_key)
+    if cached is not None:
+        return cached
+    brands = await asyncio.to_thread(get_brands_by_letter, letter)
+    set_cache(cache_key, brands)
+    return brands
+
+async def get_cached_models_by_brand(brand_id: int, vehicle_type_id: int = None):
+    """Модели для марки (кеш 5 мин, зависит от типа ТС)."""
+    cache_key = f'models_{brand_id}_{vehicle_type_id}'
+    cached = get_cache(cache_key)
+    if cached is not None:
+        return cached
+    models = await asyncio.to_thread(get_models_by_brand, brand_id, vehicle_type_id=vehicle_type_id)
+    set_cache(cache_key, models)
+    return models
+
+async def get_cached_years_by_model(model_id: int):
+    """Годы для модели (кеш 5 мин)."""
+    cache_key = f'years_{model_id}'
+    cached = get_cache(cache_key)
+    if cached is not None:
+        return cached
+    years = await asyncio.to_thread(get_years_by_model, model_id)
+    set_cache(cache_key, years)
+    return years
+
+async def get_cached_common_tire_sizes(limit: int = 10):
+    """Популярные размеры шин (кеш 5 мин)."""
+    cache_key = f'common_tires_{limit}'
+    cached = get_cache(cache_key)
+    if cached is not None:
+        return cached
+    tires = await asyncio.to_thread(get_common_tire_sizes, limit=limit)
+    set_cache(cache_key, tires)
+    return tires
+
+# ---------- Основные хендлеры ----------
 @router.message(F.text == "🚗 Мои автомобили")
 @router.message(Command("my_cars"))
 async def show_my_cars(message: Message):
     user_id = message.from_user.id
-    if not is_user_registered(user_id):
+    if not await asyncio.to_thread(is_user_registered, user_id):
         await message.answer("Сначала нужно зарегистрироваться. Используйте /start")
         return
-    cars = get_user_cars(user_id)
+    cars = await asyncio.to_thread(get_user_cars, user_id)
     if not cars:
         await message.answer(
             "У вас пока нет добавленных автомобилей.",
@@ -54,7 +116,7 @@ async def show_my_cars(message: Message):
 @router.callback_query(F.data == "back_to_cars")
 async def back_to_cars(callback: CallbackQuery):
     user_id = callback.from_user.id
-    cars = get_user_cars(user_id)
+    cars = await asyncio.to_thread(get_user_cars, user_id)
     await callback.message.edit_text(
         "Ваши автомобили:",
         reply_markup=get_cars_inline_keyboard(cars)
@@ -64,12 +126,12 @@ async def back_to_cars(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("car_select_"))
 async def select_car(callback: CallbackQuery):
     car_id = int(callback.data.split("_")[2])
-    car = get_user_car(car_id)
+    car = await asyncio.to_thread(get_user_car, car_id)
     if not car:
         await callback.message.edit_text("Автомобиль не найден.")
         await callback.answer()
         return
-    tires = get_tires_for_user_car(car_id)
+    tires = await asyncio.to_thread(get_tires_for_user_car, car_id)
     car_text = f"🚗 {car['brand']} {car['model']}"
     if car.get('year'):
         car_text += f" ({car['year']})"
@@ -81,13 +143,12 @@ async def select_car(callback: CallbackQuery):
     else:
         car_text += "\n\nШины не добавлены"
 
-    # Здесь можно создать клавиатуру действий, но пока просто показываем информацию
     await callback.message.edit_text(car_text, reply_markup=get_back_keyboard("back_to_cars"))
     await callback.answer()
 
 @router.callback_query(F.data == "car_add")
 async def add_car_start(callback: CallbackQuery, state: FSMContext):
-    vehicle_types = get_all_vehicle_types()
+    vehicle_types = await get_cached_vehicle_types()
     await callback.message.edit_text(
         "Сначала выберите тип транспортного средства:",
         reply_markup=get_vehicle_types_keyboard(vehicle_types)
@@ -99,7 +160,7 @@ async def add_car_start(callback: CallbackQuery, state: FSMContext):
 async def process_vehicle_type(callback: CallbackQuery, state: FSMContext):
     vt_id = int(callback.data.split("_")[1])
     await state.update_data(vehicle_type_id=vt_id)
-    brands_by_letter = get_brands_grouped_by_letter()
+    brands_by_letter = await get_cached_brands_grouped_by_letter()
     await callback.message.edit_text(
         "Выберите первую букву марки автомобиля:",
         reply_markup=get_brands_by_letter_keyboard(brands_by_letter)
@@ -110,8 +171,8 @@ async def process_vehicle_type(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(AddCarStates.choosing_letter, F.data.startswith("brand_letter_"))
 async def choose_brand_by_letter(callback: CallbackQuery, state: FSMContext):
     letter = callback.data.split("_")[2]
-    data = await state.get_data()
-    brands = get_brands_by_letter(letter)  # можно передавать vehicle_type_id, если нужно
+    # При необходимости можно передавать vehicle_type_id в get_brands_by_letter, если функция поддерживает
+    brands = await get_cached_brands_by_letter(letter)
     await callback.message.edit_text(
         f"Марки на букву {letter.upper()}:",
         reply_markup=get_brands_list_keyboard(brands, letter)
@@ -124,7 +185,7 @@ async def choose_model(callback: CallbackQuery, state: FSMContext):
     brand_id = int(callback.data.split("_")[2])
     await state.update_data(brand_id=brand_id)
     data = await state.get_data()
-    models = get_models_by_brand(brand_id, vehicle_type_id=data.get('vehicle_type_id'))
+    models = await get_cached_models_by_brand(brand_id, vehicle_type_id=data.get('vehicle_type_id'))
     await callback.message.edit_text(
         "Выберите модель:",
         reply_markup=get_models_keyboard(models)
@@ -136,7 +197,7 @@ async def choose_model(callback: CallbackQuery, state: FSMContext):
 async def choose_year(callback: CallbackQuery, state: FSMContext):
     model_id = int(callback.data.split("_")[2])
     await state.update_data(model_id=model_id)
-    years = get_years_by_model(model_id)
+    years = await get_cached_years_by_model(model_id)
     if years:
         await callback.message.edit_text(
             "Выберите год выпуска:",
@@ -159,7 +220,7 @@ async def process_year_skip(callback: CallbackQuery, state: FSMContext):
     await process_tire_selection(callback, state)
 
 async def process_tire_selection(callback: CallbackQuery, state: FSMContext):
-    common_tires = get_common_tire_sizes(limit=10)
+    common_tires = await get_cached_common_tire_sizes(limit=10)
     data = await state.get_data()
     if common_tires:
         await callback.message.edit_text(
@@ -180,13 +241,14 @@ async def select_existing_tire(callback: CallbackQuery, state: FSMContext):
     parts = callback.data.split("_")
     tire_id = int(parts[2])
     data = await state.get_data()
-    user_car_id = create_user_car(
+    user_car_id = await asyncio.to_thread(
+        create_user_car,
         user_id=callback.from_user.id,
         brand_id=data['brand_id'],
         model_id=data['model_id'],
         year_id=data.get('year_id')
     )
-    add_tire_to_user_car(user_car_id, tire_id, is_primary=True)
+    await asyncio.to_thread(add_tire_to_user_car, user_car_id, tire_id, is_primary=True)
     await callback.message.edit_text(
         "✅ Автомобиль успешно добавлен!",
         reply_markup=get_main_menu(callback.from_user.id)
@@ -234,18 +296,20 @@ async def add_tire_profile(message: Message, state: FSMContext):
     try:
         profile = int(message.text)
         data = await state.get_data()
-        tire_id = get_or_create_tire_size(
+        tire_id = await asyncio.to_thread(
+            get_or_create_tire_size,
             width=data['width'],
             profile=profile,
             diameter=data['diameter']
         )
-        user_car_id = create_user_car(
+        user_car_id = await asyncio.to_thread(
+            create_user_car,
             user_id=message.from_user.id,
             brand_id=data['brand_id'],
             model_id=data['model_id'],
             year_id=data.get('year_id')
         )
-        add_tire_to_user_car(user_car_id, tire_id, is_primary=True)
+        await asyncio.to_thread(add_tire_to_user_car, user_car_id, tire_id, is_primary=True)
         await message.answer(
             "✅ Автомобиль и размер шин успешно добавлены!",
             reply_markup=get_main_menu(message.from_user.id)
@@ -258,6 +322,6 @@ async def add_tire_profile(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("car_delete_"))
 async def delete_car(callback: CallbackQuery):
     car_id = int(callback.data.split("_")[2])
-    delete_user_car(car_id)
+    await asyncio.to_thread(delete_user_car, car_id)
     await callback.message.edit_text("✅ Автомобиль удалён.")
     await back_to_cars(callback)

@@ -9,6 +9,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from database.crud.users import get_all_users, is_admin
 from bot.bot import bot
+from utils.cache import get_cache, set_cache  # если есть кеш, но для списка пользователей кеш не нужен
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -17,9 +18,10 @@ class BroadcastStates(StatesGroup):
     waiting_for_text = State()
     confirming = State()
 
-# Проверка на администратора (можно вынести в декоратор, но проще в хендлере)
 async def check_admin(message: Message) -> bool:
-    if not is_admin(message.from_user.id):
+    # асинхронно проверяем админа
+    is_admin_result = await asyncio.to_thread(is_admin, message.from_user.id)
+    if not is_admin_result:
         await message.answer("⛔ У вас нет прав для этой команды.")
         return False
     return True
@@ -28,9 +30,7 @@ async def check_admin(message: Message) -> bool:
 async def cmd_broadcast(message: Message, state: FSMContext):
     if not await check_admin(message):
         return
-    await message.answer(
-        "📢 Введите текст для рассылки всем пользователям:"
-    )
+    await message.answer("📢 Введите текст для рассылки всем пользователям:")
     await state.set_state(BroadcastStates.waiting_for_text)
 
 @router.message(BroadcastStates.waiting_for_text)
@@ -40,8 +40,7 @@ async def process_broadcast_text(message: Message, state: FSMContext):
         await message.answer("❌ Сообщение не может быть пустым. Попробуйте ещё раз.")
         return
     await state.update_data(text=text)
-    
-    # Показываем подтверждение
+
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Отправить", callback_data="broadcast_confirm")],
         [InlineKeyboardButton(text="❌ Отмена", callback_data="broadcast_cancel")]
@@ -57,24 +56,25 @@ async def broadcast_confirm(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("⏳ Начинаю рассылку...")
     data = await state.get_data()
     text = data['text']
-    
-    users = get_all_users()  # предполагаем, что возвращает список user_id
+
+    # асинхронно получаем список пользователей
+    users = await asyncio.to_thread(get_all_users)
     if not users:
         await callback.message.answer("❌ Нет пользователей для рассылки.")
         await state.clear()
         return
-    
+
     success = 0
     failed = 0
     for user_id in users:
         try:
             await bot.send_message(user_id, text)
             success += 1
-            await asyncio.sleep(0.05)  # небольшая задержка, чтобы избежать флуд-контроля
+            await asyncio.sleep(0.05)  # задержка для избежания флуда
         except Exception as e:
             logger.error(f"Failed to send to {user_id}: {e}")
             failed += 1
-    
+
     await callback.message.answer(
         f"✅ Рассылка завершена.\n"
         f"📨 Успешно отправлено: {success}\n"

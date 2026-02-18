@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import Command
@@ -14,17 +15,20 @@ router = Router()
 async def show_my_appointments(message: Message):
     """Показывает список записей пользователя."""
     user_id = message.from_user.id
-    appointments = get_user_appointments(user_id)
+
+    # Асинхронно получаем записи пользователя
+    appointments = await asyncio.to_thread(get_user_appointments, user_id)
+
     if not appointments:
         await message.answer(
             "У вас пока нет записей.",
             reply_markup=get_main_menu(user_id)
         )
         return
-    
+
     text = "Ваши записи:\n\n"
     for apt in appointments:
         text += f"📅 {apt['date']} {apt['time']} — {apt['service']}\n"
         text += f"Статус: {apt['status']}\n\n"
-    
+
     await message.answer(text, reply_markup=get_main_menu(user_id))

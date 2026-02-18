@@ -3,10 +3,11 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 from bot.keyboards.main_menu import get_main_menu
-from database.crud.users import create_user, is_user_registered
+from database.crud.users import create_user
+from utils.cache import delete_cache
 
 router = Router()
 
@@ -35,7 +36,11 @@ async def process_contact(message: Message, state: FSMContext):
     full_name = message.from_user.full_name
     username = message.from_user.username
 
+    # Создаём пользователя в БД
     create_user(user_id, full_name, phone)
+    # Инвалидируем кеш статуса регистрации для этого пользователя
+    delete_cache(f'user_registered_{user_id}')
+
     await message.answer(
         "Регистрация прошла успешно!",
         reply_markup=get_main_menu(user_id)

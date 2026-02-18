@@ -6,6 +6,7 @@ from config import Config
 from bot.middlewares.logging import LoggingMiddleware
 from bot.middlewares.auth import AuthMiddleware
 from bot.middlewares.throttling import ThrottlingMiddleware
+from aiogram.types import BotCommand
 
 logger = logging.getLogger(__name__)
 
@@ -63,3 +64,13 @@ async def global_error_handler(event: ErrorEvent) -> None:
             )
     except Exception as e:
         logger.error(f"Не удалось отправить сообщение об ошибке пользователю: {e}")
+
+async def set_bot_commands(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Главное меню"),
+        BotCommand(command="book", description="Записаться на услугу"),
+        BotCommand(command="my_cars", description="Мои автомобили"),
+        BotCommand(command="my_appointments", description="Мои записи"),
+        BotCommand(command="about", description="О нас"),
+    ]
+    await bot.set_my_commands(commands)

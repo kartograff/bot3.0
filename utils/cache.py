@@ -1,21 +1,31 @@
 from cachetools import TTLCache
 
-# Global cache with default TTL of 5 minutes
+# Кеш с максимальным размером 1000 элементов и временем жизни 300 секунд (5 минут)
 _cache = TTLCache(maxsize=1000, ttl=300)
 
-def get(key, default=None):
-    """Get value from cache."""
-    return _cache.get(key, default)
+def get_cache(key):
+    """Получить значение из кеша по ключу."""
+    return _cache.get(key)
 
-def set(key, value, ttl=None):
-    """Set value in cache (TTL is managed by the cache)."""
+def set_cache(key, value):
+    """Установить значение в кеш."""
     _cache[key] = value
 
-def delete(key):
-    """Remove key from cache."""
+def delete_cache(key):
+    """Удалить значение из кеша, если оно существует."""
     if key in _cache:
         del _cache[key]
 
-def clear():
-    """Clear all cache."""
-    _cache.clear()
+def get_user_registration_status(user_id: int) -> bool:
+    """
+    Проверяет, зарегистрирован ли пользователь, с кешированием на 5 минут.
+    Если в кеше нет, запрашивает из БД и сохраняет.
+    """
+    from database.crud.users import is_user_registered
+    cache_key = f'user_registered_{user_id}'
+    cached = get_cache(cache_key)
+    if cached is not None:
+        return cached
+    status = is_user_registered(user_id)
+    set_cache(cache_key, status)
+    return status

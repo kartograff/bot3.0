@@ -5,24 +5,23 @@ from aiogram.types import (
     InlineKeyboardButton,
 )
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
-from database.crud.users import is_user_registered
+from utils.cache import get_user_registration_status
 
 def get_main_menu(user_id: int = None) -> ReplyKeyboardMarkup:
     """
     Главное меню бота.
     Если пользователь не зарегистрирован, показывает только 'Записаться' и 'О нас'.
+    Статус регистрации берётся из кеша (с обновлением раз в 5 минут).
     """
     builder = ReplyKeyboardBuilder()
 
-    # Основные кнопки, доступные всем
     builder.row(
         KeyboardButton(text="📝 Записаться"),
         KeyboardButton(text="ℹ️ О нас"),
         width=2
     )
 
-    # Кнопки для зарегистрированных пользователей
-    if user_id and is_user_registered(user_id):
+    if user_id and get_user_registration_status(user_id):
         builder.row(
             KeyboardButton(text="📋 Мои записи"),
             KeyboardButton(text="🚗 Мои автомобили"),
@@ -42,6 +41,11 @@ def skip_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="⏩ Пропустить", callback_data="skip"))
     builder.row(InlineKeyboardButton(text="🔙 Назад", callback_data="back"))
+    return builder.as_markup()
+
+def start_inline_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="🏠 Старт", callback_data="start_command"))
     return builder.as_markup()
 
 def cancel_keyboard() -> InlineKeyboardMarkup:
